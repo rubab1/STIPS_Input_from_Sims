@@ -22,18 +22,22 @@ wv2 = np.array([0.5965,0.6254,0.6725,0.8709,1.0611,1.2945,1.5809,1.8452])*1e-4 #
 awp = np.array([0.7458,0.9712,0.8779,0.5419,0.5353,0.5054,0.5222,0.3658])*1e4  # Aeff*Weff/lambda_pivot (cm^2)
 
 def DoAll(wv1,wv2):
-    glxs, mags = [[],[],[],[]], [[],[],[],[]]
+    glxs, mags = [],[]
     for i,filt in enumerate(hst_filt):
-        glxs[i]=ascii.read(filt+'.dat')
-        mags[i]=glxs[i]['mag']
-
+        glxs.append(ascii.read(filt+'.dat'))
+        mags.append(glxs[i]['mag'])
     m1  = np.array(mags).T
-    in1 = np.array([i for i in range(m1.shape[0]) if not \
-            (np.isnan(m1[i,0])|np.isnan(m1[i,1])|np.isnan(m1[i,2])|np.isnan(m1[i,3]))])
-    m1 = m1[in1,:]                                                             # exclude NaN
+
+    in1 = np.arange(m1.shape[0])\
+          [~(np.isnan(m1[:,0])|np.isnan(m1[:,1])|np.isnan(m1[:,2])|np.isnan(m1[:,3]))]
+
+    # temporary cut at H=20
+    in1 = in1[m1[in1,3]>20]
+
+    m1 = m1[in1,:]
 
     f_nu1 = 10**(m1/(-2.5)) * fo * 1e-23                                       # ergs/s/cm^2/Hz
-    N_lm1 = np.log10(f_nu1/(wv1*h))                                            # Photons/s/cm^2/Hz
+    N_lm1 = np.log10(f_nu1/(wv1*h))                                            # Photons/s/cm^2/cm
     N_lm2 = np.zeros((N_lm1.shape[0],wv2.shape[0]))
     wv1, wv2 = np.log10(wv1),np.log10(wv2)
 
@@ -69,10 +73,9 @@ def write_stips_table(gals,flux,filt,in1):
             'n':'%10.3f', 're':'%15.7f', 'phi':'%15.7f', 'ratio':'%15.7f', 'notes':'%8s'}
     t    = Table(tab, names=nms)
     outfile = '.'.join([filt,'txt'])
-    ascii.write(t, outfile, format='fixed_width', delimiter='', formats=fmt)
     radec  = np.mean(np.array([gals['ra'][in1],gals['dec'][in1]]).T, axis=0)
-    
-    return print('\nWrote out:', outfile, ';\tCenter = ', radec)
+    ascii.write(t, outfile, format='fixed_width', delimiter='', formats=fmt)
+    return print('\nWrote out:', outfile) #, ';\tCenter = ', radec)
 
 if __name__ == '__main__':
     import sys, time
